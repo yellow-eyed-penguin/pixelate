@@ -7,6 +7,7 @@ import tkinter
 import tkinter.filedialog
 import pygame
 import sys
+from pygame.locals import *
 
 
 def pixelate_v1(input_file_path: str, output_file_path: str, pixel_size: int):
@@ -64,6 +65,7 @@ WIDTH = 1536
 HEIGHT = 864
 FPS = 30
 
+
 def prompt_file():
     """Create a Tk file dialog and cleanup when finished"""
     top = tkinter.Tk()
@@ -71,7 +73,8 @@ def prompt_file():
     file_name = tkinter.filedialog.askopenfilename(parent=top)
     top.destroy()
     return file_name
-    
+
+
 def pixelate(path, pixels):
     index = path.rfind('.')
     output_path = path[0:index] + '-pixelated' + path[index:]
@@ -79,12 +82,81 @@ def pixelate(path, pixels):
     pixelate_v2(path, output_path, pixels)
     return output_path
 
+
+def slider(sx,sy,width,height,action,
+               buttonColor,buttonBorderThickness,buttonWidth,
+               sliderBarColor,sliderBarBorderThickness,sliderBarHeight,
+               sliderStepColor,sliderStepBorderThickness,sliderStepWidth,sliderStepHeight,sliderStepSnap,
+               maxValue, steps):
+    
+    if mouse[0] > sx and mouse[0] < sx+width and mouse[1] > sy and mouse[1] < sy+height:
+        if click[0] == 1:
+            mouseX = mouse[0] - 5
+            if mouseX < sx+sliderStepSnap:
+                mouseX = sx
+            
+            elif mouseX > (round(sx+25*((width)/100))-sliderStepSnap) and mouseX < (round(sx+25*((width)/100))+sliderStepSnap):
+                mouseX = round(sx+25*((width)/100)-buttonWidth/2)
+            elif mouseX > (round(sx+50*((width)/100))-sliderStepSnap) and mouseX < (round(sx+50*((width)/100))+sliderStepSnap):
+                mouseX = round(sx+50*((width)/100)-buttonWidth/2) 
+            elif mouseX > (round(sx+75*((width)/100))-sliderStepSnap) and mouseX < (round(sx+75*((width)/100))+sliderStepSnap):
+                mouseX = round(sx+75*((width)/100)-buttonWidth/2)
+            elif mouseX > (round(sx+100*((width)/100))-sliderStepSnap) and mouseX < (round(sx+100*((width)/100))+sliderStepSnap):
+                mouseX = round(sx+100*((width)/100)-buttonWidth/2)
+
+            elif mouseX > sx+width-buttonWidth-sliderStepSnap:
+                mouseX = sx+width-buttonWidth
+            
+            pygame.draw.rect(window,buttonColor,(sx,sy,width,height))
+            
+            for i in range(1, steps):
+                pygame.draw.rect(window,sliderStepColor,(round(sx+i*(100/steps)*((width)/100)),sy+(height-sliderStepHeight)/2,sliderStepWidth,sliderStepHeight))
+                if sliderStepBorderThickness != 0:
+                    pygame.draw.rect(window,(0,0,0),(round(sx+i*(100/steps)*((width)/100)),sy+(height-sliderStepHeight)/2,sliderStepWidth,sliderStepHeight),sliderStepBorderThickness)
+            pygame.draw.rect(window,sliderBarColor,(sx,sy+height/2-sliderBarHeight/2,width,sliderBarHeight))
+            
+            pygame.draw.rect(window,buttonColor,(mouseX,sy,buttonWidth,height))
+            if buttonBorderThickness != 0:
+                pygame.draw.rect(window,(0,0,0),(mouseX,sy,buttonWidth,height),buttonBorderThickness)
+            if sliderBarBorderThickness != 0:
+                pygame.draw.rect(window,(0,0,0),(sx,sy+height/2-sliderBarHeight/2,width,sliderBarHeight),sliderBarBorderThickness)
+            pygame.display.update(pygame.Rect(sx,sy,width,height))
+            
+            if action == "pixel_slider":
+                sliderValue = (mouseX-sx)/((width-buttonWidth)/maxValue)
+                #print("slider:",sliderValue)
+            return sliderValue
+
+def slider_init(sx,sy,width,height,
+               buttonColor,buttonBorderThickness,buttonWidth,
+               sliderBarColor,sliderBarBorderThickness,sliderBarHeight,
+               sliderStepColor,sliderStepBorderThickness,sliderStepWidth,sliderStepHeight,sliderStepSnap,
+               maxValue, steps, start_value):
+
+            pygame.draw.rect(window,buttonColor,(sx,sy,width,height))
+            
+            for i in range(1, steps):
+                pygame.draw.rect(window,sliderStepColor,(round(sx+i*(100/steps)*((width)/100)),sy+(height-sliderStepHeight)/2,sliderStepWidth,sliderStepHeight))
+                if sliderStepBorderThickness != 0:
+                    pygame.draw.rect(window,(0,0,0),(round(sx+i*(100/steps)*((width)/100)),sy+(height-sliderStepHeight)/2,sliderStepWidth,sliderStepHeight),sliderStepBorderThickness)
+            pygame.draw.rect(window,sliderBarColor,(sx,sy+height/2-sliderBarHeight/2,width,sliderBarHeight))
+            
+            pygame.draw.rect(window,buttonColor,(sx+start_value*((width-buttonWidth)/maxValue),sy,buttonWidth,height))
+            if buttonBorderThickness != 0:
+                pygame.draw.rect(window,(0,0,0),(sx+start_value*((width-buttonWidth)/maxValue),sy,buttonWidth,height),buttonBorderThickness)
+            if sliderBarBorderThickness != 0:
+                pygame.draw.rect(window,(0,0,0),(sx,sy+height/2-sliderBarHeight/2,width,sliderBarHeight),sliderBarBorderThickness)
+            pygame.display.update(pygame.Rect(sx,sy,width,height))
+ 
+
 pygame.init()
 window = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 clock = pygame.time.Clock()
+#window.fill(GOLD)
+#pygame.display.update(pygame.Rect(0,0,1920,1080))
 
 # defining a font
-smallfont = pygame.font.SysFont('Corbel', 35)
+smallfont = pygame.font.SysFont('Corbel', 32)
 
 text_color = WHITE
 # rendering a text written in
@@ -95,6 +167,8 @@ text_pixelated = smallfont.render('PIXELATED IMAGE:', True, text_color)
 button_width = 220
 button_height = 40
 displayed_image_path = None
+pixel_val = 16
+first_loop = True
 
 f = ''
 frames = 0
@@ -118,11 +192,15 @@ while running:
                 f = prompt_file()
             elif width/2 <= mouse[0] <= width/2+button_width and 0 <= mouse[1] <= button_height:
                 #print('pixelate')
-                displayed_image_path = pixelate(f, 16)
+                if f != '':
+                    displayed_image_path = pixelate(f, pixel_val)
+                else:
+                    print('Error: Please select a file first!')
+                    #raise FileNotFoundError
 
     # draw surface - fill background
     #window.fill(pygame.color.Color('yellow'))
-    window.fill(BLACK)
+
     ## update title to show filename
     pygame.display.set_caption(f"Frames: {frames:10}, File: {f}")
     
@@ -205,7 +283,35 @@ while running:
         rect = rect.move((width/2, height/6))
         # left, top
         window.blit(image, rect)
+
+
+    click = pygame.mouse.get_pressed()
+
+    # to display it without clicking first
+    if first_loop == True:
+        first_loop = False
+        slider_init(5, 50, width/2, 40,
+           GRAY, 1, 20,
+           BLACK, 0, 10,
+           BLACK, 5, 10, 40, 4,
+           64, 4, 16) #  max_value, steps, start_value
+
+    s_val = slider(5, 50, width/2, 40, "pixel_slider",
+           GRAY, 1, 20,
+           BLACK, 0, 10,
+           BLACK, 5, 10, 40, 4,
+           64, 4) #  max_value, steps
+
+    if s_val != None:
+        # default 16
+        s_val = int(s_val)
+        if s_val != 0:
+            pixel_val = s_val
+        else:
+            pixel_val = 256
     
+    # print(pixel_val)
+
     # show surfacedisplay_surface.blit(image, (0, 0))
     pygame.display.update()
     # limit frames
